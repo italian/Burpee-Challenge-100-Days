@@ -5,6 +5,8 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import java.util.Calendar
+import java.util.concurrent.TimeUnit
 
 class BurpeeViewModel(private val repository: BurpeeRepository) : ViewModel() {
 
@@ -21,6 +23,7 @@ class BurpeeViewModel(private val repository: BurpeeRepository) : ViewModel() {
     val burpeesDone: LiveData<Int> = _burpeesDone
 
     private var totalDays = 100
+    private var lastRecordedDate: Long = 0
 
     init {
         viewModelScope.launch {
@@ -29,10 +32,39 @@ class BurpeeViewModel(private val repository: BurpeeRepository) : ViewModel() {
     }
 
     private suspend fun loadData() {
-        _currentDay.value = repository.getCurrentDay()
-        _totalBurpeesToday.value = _currentDay.value ?: 1
-        _burpeesDone.value = repository.getBurpeesDoneToday()
-        _burpeesLeft.value = (_totalBurpeesToday.value ?: 1) - (_burpeesDone.value ?: 0)
+        val currentDate = Calendar.getInstance().timeInMillis
+        lastRecordedDate = repository.getLastRecordedDate()
+
+        val daysDifference = TimeUnit.MILLISECONDS.toDays(currentDate - lastRecordedDate)
+
+        if (lastRecordedDate == 0L) {
+            // Первый запуск приложения
+            _currentDay.value = 1
+            _totalBurpeesToday.value = 1
+            _burpeesDone.value = 0
+            _burpeesLeft.value = 1
+
+            repository.saveCurrentDay(1)
+            repository.saveBurpeesDoneToday(0)
+            repository.saveLastRecordedDate(currentDate)
+        } else if (daysDifference >= 1) {
+            // Если прошел хотя бы один день, обновляем день
+            val nextDay = (repository.getCurrentDay() + daysDifference).coerceAtMost(totalDays.toLong()).toInt()
+            _currentDay.value = nextDay
+            _totalBurpeesToday.value = nextDay
+            _burpeesDone.value = 0
+            _burpeesLeft.value = nextDay
+
+            repository.saveCurrentDay(nextDay)
+            repository.saveBurpeesDoneToday(0)
+            repository.saveLastRecordedDate(currentDate)
+        } else {
+            // Если это тот же день, загружаем сохраненные данные
+            _currentDay.value = repository.getCurrentDay()
+            _totalBurpeesToday.value = _currentDay.value
+            _burpeesDone.value = repository.getBurpeesDoneToday()
+            _burpeesLeft.value = (_totalBurpeesToday.value ?: 0) - (_burpeesDone.value ?: 0)
+        }
     }
 
     fun addBurpees(count: Int) {
@@ -41,29 +73,9 @@ class BurpeeViewModel(private val repository: BurpeeRepository) : ViewModel() {
         _burpeesDone.value = newDone
         _burpeesLeft.value = (_totalBurpeesToday.value ?: 1) - newDone
 
-        if (newDone >= (_totalBurpeesToday.value ?: 1)) {
-            completeDay()
-        }
-
         viewModelScope.launch {
             repository.saveBurpeesDoneToday(newDone)
-        }
-    }
-
-    private fun completeDay() {
-        viewModelScope.launch {
-            val nextDay = (_currentDay.value ?: 1) + 1
-            _currentDay.value = nextDay
-            _totalBurpeesToday.value = nextDay
-            _burpeesDone.value = 0
-            _burpeesLeft.value = nextDay
-
-            repository.saveCurrentDay(nextDay)
-            repository.saveBurpeesDoneToday(0)
-
-            if (nextDay > totalDays) {
-                // Челлендж завершен, можно добавить логику для показа поздравления
-            }
+            repository.saveLastRecordedDate(Calendar.getInstance().timeInMillis)
         }
     }
 
@@ -76,6 +88,7 @@ class BurpeeViewModel(private val repository: BurpeeRepository) : ViewModel() {
 
             repository.saveCurrentDay(1)
             repository.saveBurpeesDoneToday(0)
+            repository.saveLastRecordedDate(Calendar.getInstance().timeInMillis)
         }
     }
 }

@@ -14,6 +14,7 @@ class BurpeeRepository(private val context: Context) {
     companion object {
         private val CURRENT_DAY = intPreferencesKey("current_day")
         private val BURPEES_DONE_TODAY = intPreferencesKey("burpees_done_today")
+        private val LAST_RECORDED_DATE = longPreferencesKey("last_recorded_date")
     }
 
     suspend fun getCurrentDay(): Int {
@@ -28,6 +29,12 @@ class BurpeeRepository(private val context: Context) {
         }.first()
     }
 
+    suspend fun getLastRecordedDate(): Long {
+        return context.dataStore.data.map { preferences ->
+            preferences[LAST_RECORDED_DATE] ?: 0L
+        }.first()
+    }
+
     suspend fun saveCurrentDay(day: Int) {
         context.dataStore.edit { preferences ->
             preferences[CURRENT_DAY] = day
@@ -37,6 +44,12 @@ class BurpeeRepository(private val context: Context) {
     suspend fun saveBurpeesDoneToday(count: Int) {
         context.dataStore.edit { preferences ->
             preferences[BURPEES_DONE_TODAY] = count
+        }
+    }
+
+    suspend fun saveLastRecordedDate(date: Long) {
+        context.dataStore.edit { preferences ->
+            preferences[LAST_RECORDED_DATE] = date
         }
     }
 }
