@@ -32,10 +32,13 @@ class BurpeeViewModel(private val repository: BurpeeRepository) : ViewModel() {
     }
 
     private suspend fun loadData() {
-        val currentDate = Calendar.getInstance().timeInMillis
+        val currentDate = Calendar.getInstance()
+        val lastRecordedDateCalendar = Calendar.getInstance()
         lastRecordedDate = repository.getLastRecordedDate()
 
-        val daysDifference = TimeUnit.MILLISECONDS.toDays(currentDate - lastRecordedDate)
+        lastRecordedDateCalendar.timeInMillis = lastRecordedDate
+
+        val daysDifference = daysBetween(lastRecordedDateCalendar, currentDate)
 
         if (lastRecordedDate == 0L) {
             // Первый запуск приложения
@@ -46,10 +49,11 @@ class BurpeeViewModel(private val repository: BurpeeRepository) : ViewModel() {
 
             repository.saveCurrentDay(1)
             repository.saveBurpeesDoneToday(0)
-            repository.saveLastRecordedDate(currentDate)
+            repository.saveLastRecordedDate(currentDate.timeInMillis)
         } else if (daysDifference >= 1) {
             // Если прошел хотя бы один день, обновляем день
-            val nextDay = (repository.getCurrentDay() + daysDifference).coerceAtMost(totalDays.toLong()).toInt()
+            val nextDay = (repository.getCurrentDay() + daysDifference).coerceAtMost(totalDays.toLong()
+                .toInt()).toInt()
             _currentDay.value = nextDay
             _totalBurpeesToday.value = nextDay
             _burpeesDone.value = 0
@@ -57,13 +61,35 @@ class BurpeeViewModel(private val repository: BurpeeRepository) : ViewModel() {
 
             repository.saveCurrentDay(nextDay)
             repository.saveBurpeesDoneToday(0)
-            repository.saveLastRecordedDate(currentDate)
+            repository.saveLastRecordedDate(currentDate.timeInMillis)
         } else {
             // Если это тот же день, загружаем сохраненные данные
             _currentDay.value = repository.getCurrentDay()
             _totalBurpeesToday.value = _currentDay.value
             _burpeesDone.value = repository.getBurpeesDoneToday()
             _burpeesLeft.value = (_totalBurpeesToday.value ?: 0) - (_burpeesDone.value ?: 0)
+        }
+    }
+
+    private fun daysBetween(startDate: Calendar, endDate: Calendar): Int {
+        val startDay = startDate.get(Calendar.DAY_OF_YEAR)
+        val endDay = endDate.get(Calendar.DAY_OF_YEAR)
+        val startYear = startDate.get(Calendar.YEAR)
+        val endYear = endDate.get(Calendar.YEAR)
+
+        return if (startYear == endYear) {
+            endDay - startDay
+        } else {
+            var days = endDay - startDay
+            for (year in startYear until endYear) {
+                val daysInYear = if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) {
+                    366
+                } else {
+                    365
+                }
+                days += daysInYear
+            }
+            days
         }
     }
 
