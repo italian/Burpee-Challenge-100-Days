@@ -1,6 +1,6 @@
 # Burpee Challenge 100 Days
 
-[![Project Status: Alpha v0.1](https://img.shields.io/badge/status-alpha%20v0.1-red)](https://github.com/italian/Burpee-Challenge-100-Days)
+[![Project Status: Alpha v0.1](https://img.shields.io/badge/status-v0.1--alpha-red)](https://github.com/italian/Burpee-Challenge-100-Days)
 
 Burpee Challenge 100 Days - это Android приложение, которое помогает пользователям отслеживать выполнение заданного количества берпи в день в рамках челленджа на 100 дней.
 
