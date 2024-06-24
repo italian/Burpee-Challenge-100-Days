@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import java.util.Calendar
-import java.util.concurrent.TimeUnit
 
 class BurpeeViewModel(private val repository: BurpeeRepository) : ViewModel() {
 
@@ -53,7 +52,7 @@ class BurpeeViewModel(private val repository: BurpeeRepository) : ViewModel() {
         } else if (daysDifference >= 1) {
             // Если прошел хотя бы один день, обновляем день
             val nextDay = (repository.getCurrentDay() + daysDifference).coerceAtMost(totalDays.toLong()
-                .toInt()).toInt()
+                .toInt())
             _currentDay.value = nextDay
             _totalBurpeesToday.value = nextDay
             _burpeesDone.value = 0
