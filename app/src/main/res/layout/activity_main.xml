@@ -61,7 +61,7 @@
 
     <EditText
         android:id="@+id/etBurpeesInput"
-        android:layout_width="388dp"
+        android:layout_width="288dp"
         android:layout_height="48dp"
         android:hint="Введите количество бёрпи"
         android:inputType="number"
