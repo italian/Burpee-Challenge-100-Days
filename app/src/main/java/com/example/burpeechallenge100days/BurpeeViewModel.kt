@@ -79,6 +79,19 @@ class BurpeeViewModel(private val repository: BurpeeRepository) : ViewModel() {
         }
     }
 
+    fun setDay(day: Int) {
+        _currentDay.value = day
+        _totalBurpeesToday.value = day
+        _burpeesDone.value = 0
+        _burpeesLeft.value = day
+
+        viewModelScope.launch {
+            repository.saveCurrentDay(day)
+            repository.saveBurpeesDoneToday(0)
+            repository.saveLastRecordedDate(Calendar.getInstance().timeInMillis)
+        }
+    }
+
     fun resetProgress() {
         viewModelScope.launch {
             _currentDay.value = 1

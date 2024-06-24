@@ -56,8 +56,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupListeners() {
         btnConfirm.setOnClickListener {
-            val input = etBurpeesInput.text.toString().toIntOrNull() ?: 0
-            viewModel.addBurpees(input)
+            val input = etBurpeesInput.text.toString()
+            if (input.startsWith("0")) {
+                val day = input.toIntOrNull() ?: 1
+                viewModel.setDay(day)
+            } else {
+                val burpees = input.toIntOrNull() ?: 0
+                viewModel.addBurpees(burpees)
+            }
             etBurpeesInput.text.clear()
         }
     }
