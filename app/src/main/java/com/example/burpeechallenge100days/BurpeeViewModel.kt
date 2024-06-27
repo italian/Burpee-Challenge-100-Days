@@ -34,40 +34,77 @@ class BurpeeViewModel(private val repository: BurpeeRepository) : ViewModel() {
         val currentDate = Calendar.getInstance()
         val lastRecordedDateCalendar = Calendar.getInstance()
         lastRecordedDate = repository.getLastRecordedDate()
+        totalDays = repository.getTotalDays()
 
         lastRecordedDateCalendar.timeInMillis = lastRecordedDate
 
         val daysDifference = daysBetween(lastRecordedDateCalendar, currentDate)
 
-        if (lastRecordedDate == 0L) {
-            // Первый запуск приложения
-            _currentDay.value = 1
-            _totalBurpeesToday.value = 1
-            _burpeesDone.value = 0
-            _burpeesLeft.value = 1
-
-            repository.saveCurrentDay(1)
-            repository.saveBurpeesDoneToday(0)
-            repository.saveLastRecordedDate(currentDate.timeInMillis)
-        } else if (daysDifference >= 1) {
-            // Если прошел хотя бы один день, обновляем день
-            val nextDay = (repository.getCurrentDay() + daysDifference).coerceAtMost(totalDays.toLong()
-                .toInt())
-            _currentDay.value = nextDay
-            _totalBurpeesToday.value = nextDay
-            _burpeesDone.value = 0
-            _burpeesLeft.value = nextDay
-
-            repository.saveCurrentDay(nextDay)
-            repository.saveBurpeesDoneToday(0)
-            repository.saveLastRecordedDate(currentDate.timeInMillis)
-        } else {
-            // Если это тот же день, загружаем сохраненные данные
-            _currentDay.value = repository.getCurrentDay()
-            _totalBurpeesToday.value = _currentDay.value
-            _burpeesDone.value = repository.getBurpeesDoneToday()
-            _burpeesLeft.value = (_totalBurpeesToday.value ?: 0) - (_burpeesDone.value ?: 0)
+        when {
+            lastRecordedDate == 0L -> {
+                // Первый запуск приложения
+                resetProgress()
+            }
+            daysDifference == 1 -> {
+                // Если прошел один день
+                handleOneDaysPassed()
+            }
+            daysDifference == 2 -> {
+                // Если прошло два дня
+                handleTwoDaysPassed()
+            }
+            daysDifference > 2 -> {
+                // Если прошло больше двух дней
+                resetProgress()
+            }
+            else -> {
+                // Если это тот же день, загружаем сохраненные данные
+                loadSavedData()
+            }
         }
+    }
+
+    private suspend fun handleOneDaysPassed() {
+        val dayBeforeYesterdayBurpeesLeft = repository.getBurpeesLeftBeforeYesterday()
+        val burpeesLeft = repository.getBurpeesLeft()
+
+        if (dayBeforeYesterdayBurpeesLeft > 0) {
+            resetProgress()
+        } else if (burpeesLeft == 0) {
+            loadSavedData()
+            _currentDay.value = (_currentDay.value ?: 1) + 1
+            _totalBurpeesToday.value = _currentDay.value
+            _burpeesDone.value = 0
+            _burpeesLeft.value = _totalBurpeesToday.value
+            saveProgress()
+        } else {
+            incrementDay()
+        }
+    }
+
+    private suspend fun handleTwoDaysPassed() {
+        val dayBeforeYesterdayBurpeesLeft = repository.getBurpeesLeftBeforeYesterday()
+        val burpeesLeft = repository.getBurpeesLeft()
+
+        if (dayBeforeYesterdayBurpeesLeft > 0) {
+            resetProgress()
+        } else if (burpeesLeft == 0) {
+            loadSavedData()
+            _currentDay.value = (_currentDay.value ?: 1) + 2
+            _totalBurpeesToday.value = (_currentDay.value ?: 1) - 1
+            _burpeesDone.value = 0
+            _burpeesLeft.value = _totalBurpeesToday.value
+            saveProgress()
+        } else {
+            resetProgress()
+        }
+    }
+
+    private suspend fun loadSavedData() {
+        _currentDay.value = repository.getCurrentDay()
+        _totalBurpeesToday.value = repository.getTotalBurpeesToday()
+        _burpeesDone.value = repository.getBurpeesDoneToday()
+        _burpeesLeft.value = repository.getBurpeesLeft()
     }
 
     private fun daysBetween(startDate: Calendar, endDate: Calendar): Int {
@@ -97,9 +134,11 @@ class BurpeeViewModel(private val repository: BurpeeRepository) : ViewModel() {
         val newDone = currentDone + count
         _burpeesDone.value = newDone
         _burpeesLeft.value = (_totalBurpeesToday.value ?: 1) - newDone
+        val newLeft = _burpeesLeft.value ?: 0
 
         viewModelScope.launch {
             repository.saveBurpeesDoneToday(newDone)
+            repository.saveBurpeesLeft(newLeft)
             repository.saveLastRecordedDate(Calendar.getInstance().timeInMillis)
         }
     }
@@ -111,22 +150,35 @@ class BurpeeViewModel(private val repository: BurpeeRepository) : ViewModel() {
         _burpeesLeft.value = day
 
         viewModelScope.launch {
-            repository.saveCurrentDay(day)
-            repository.saveBurpeesDoneToday(0)
-            repository.saveLastRecordedDate(Calendar.getInstance().timeInMillis)
+            saveProgress()
         }
     }
 
-    fun resetProgress() {
+    private fun resetProgress() {
         viewModelScope.launch {
             _currentDay.value = 1
             _totalBurpeesToday.value = 1
             _burpeesDone.value = 0
             _burpeesLeft.value = 1
 
-            repository.saveCurrentDay(1)
-            repository.saveBurpeesDoneToday(0)
-            repository.saveLastRecordedDate(Calendar.getInstance().timeInMillis)
+            saveProgress()
         }
+    }
+
+    private suspend fun saveProgress() {
+        repository.saveCurrentDay(_currentDay.value ?: 1)
+        repository.saveBurpeesDoneToday(_burpeesDone.value ?: 0)
+        repository.saveBurpeesLeft(_burpeesLeft.value ?: 0)
+        repository.saveLastRecordedDate(Calendar.getInstance().timeInMillis)
+        repository.saveTotalDays(totalDays)
+        repository.saveTotalBurpeesToday(_totalBurpeesToday.value ?: 0)
+    }
+
+    private suspend fun incrementDay() {
+        loadSavedData()
+        _currentDay.value = (_currentDay.value ?: 1) + 1
+        _burpeesDone.value = 0
+        _burpeesLeft.value = _totalBurpeesToday.value
+        saveProgress()
     }
 }
