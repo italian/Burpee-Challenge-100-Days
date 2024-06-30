@@ -1,10 +1,13 @@
 package com.example.burpeechallenge100days
 
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
+import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 
@@ -21,6 +24,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etBurpeesInput: EditText
     private lateinit var btnConfirm: Button
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -39,6 +43,7 @@ class MainActivity : AppCompatActivity() {
         btnConfirm = findViewById(R.id.btnConfirm)
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun setupObservers() {
         viewModel.currentDay.observe(this) { day ->
             tvCurrentDay.text = "День: $day"
@@ -52,8 +57,24 @@ class MainActivity : AppCompatActivity() {
         viewModel.burpeesDone.observe(this) { done ->
             tvBurpeesDone.text = "Выполнено бёрпи: $done"
         }
+        viewModel.shouldShowResetDialog.observe(this) { shouldShow ->
+            if (shouldShow) {
+                showResetDialog()
+            }
+        }
     }
 
+    private fun showResetDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Прогресс сброшен")
+            .setMessage("Извините, но ваш прогресс был сброшен, потому что вы не выполнели более одного дня.")
+            .setPositiveButton("ОК") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun setupListeners() {
         btnConfirm.setOnClickListener {
             val input = etBurpeesInput.text.toString()
@@ -70,6 +91,7 @@ class MainActivity : AppCompatActivity() {
 }
 
 class BurpeeViewModelFactory(private val repository: BurpeeRepository) : ViewModelProvider.Factory {
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(BurpeeViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
